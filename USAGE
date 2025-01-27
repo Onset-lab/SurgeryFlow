@@ -1,0 +1,227 @@
+SurgeryFlow pipeline
+====================
+
+Run SurgeryFlow pipeline
+
+
+USAGE
+
+nextflow run main.nf [OPTIONAL_ARGUMENTS] (--input)
+
+Example: 
+
+nextflow run Onset-lab/SurgeryFlow -r main --input input -with-docker onsetlab/surgeryflow:chum_latest -with-report -profile standard,use_gpu --max_dti_shell_value 1500 --atlas_directory /home/gtheaud/Assets/rbx --bundles 'OR_ML_L AF_L PYT_L FAT_L UF_L' -resume
+
+DESCRIPTION
+
+    --input=/path/to/[root]             Root folder containing multiple subjects
+
+                                        [root]
+                                        ├── S1
+                                        │   └── DICOM_DIRECTORY
+                                        └── S2
+                                            └── DICOM_DIRECTORY
+
+    --atlas_directory                   Path of the folder containing atlas
+                                        ├── atlas
+                                        │   └── pop_average
+                                        ├── centroids
+                                        ├── config_fss_1.json
+                                        ├── config_fss_2.json
+                                        └── mni_masked.nii.gz
+    
+    --bundles                           Bundle names wanted to be extracted in the DICOM. (Maximum 5 bundles)
+                                        The list must be formated as 'OR_ML_L AF_L PYT_L FAT_L UF_L'
+                                        The bundles names must be the same as defined in atlas/pop_average.
+
+
+Files should be compressed Nifti files (.nii.gz)
+
+OPTIONAL BIDS ARGUMENTS (current value)
+
+--fs=/path/to/[fs]                          Freesurfer output folder. One freesurfer folder per subject.
+                                            If you want to run Tractoflow-ABS (Atlas Based Segmentation) combined
+                                            with a BIDS structure input you need to have this argument.
+
+--bidsignore                                If you want to ignore some subjects or some files, you can provide an extra bidsignore file.
+                                            Check: https://github.com/bids-standard/bids-validator#bidsignore
+
+--clean_bids                                If set, it will remove all the participants that are missing any information.
+
+OPTIONAL ARGUMENTS (current value)
+
+--b0_thr_extract_b0                         All b-values below b0_thr_extract_b0 are considered b=0 images ($b0_thr_extract_b0).
+--dwi_shell_tolerance                       All b-values to +-dwi_shell_tolerance are considered as the same b-value ($dwi_shell_tolerance).
+
+--bet_prelim_f                              Fractional Intensity threshold for preliminary BET ($bet_prelim_f).
+--dilate_b0_mask_prelim_brain_extraction    Dilation factor to keep the whole brain.
+                                            Not the final extraction ($dilate_b0_mask_prelim_brain_extraction).
+
+--run_dwi_denoising                         Run dwi denoising ($run_dwi_denoising).
+--extent                                    Denoising block size ($extent).
+                                            Rule: extent^3 >= number of directions.
+
+--run_gibbs_correction                      Run Gibbs correction ($run_gibbs_correction)
+
+--run_topup                                 Run Topup ($run_topup).
+--encoding_direction                        Encoding direction of the DWI [x, y, z] ($encoding_direction).
+--readout                                   Readout time ($readout).
+
+--run_eddy                                  Run Eddy ($run_eddy).
+--eddy_cmd                                  Eddy command to use [eddy_openmp, eddy_cuda] ($eddy_cmd).
+--bet_topup_before_eddy_f                   Fractional Intensity threshold for intermediate BET operation
+                                            on topup corrected images ($bet_topup_before_eddy_f).
+--use_slice_drop_correction                 If set, will use the slice drop correction option from Eddy ($use_slice_drop_correction).
+
+--bet_dwi_final_f                           Fractional Intensity threshold for the final DWI BET ($bet_dwi_final_f).
+
+--fa_mask_threshold                         FA threshold to compute WM mask for normalization ($fa_mask_threshold).
+
+--run_resample_dwi                          Run resample DWI ($run_resample_dwi).
+--dwi_resolution                            DWI resolution ($dwi_resolution).
+--dwi_interpolation                         DWI interpolation method [nn, lin, quad, cubic] ($dwi_interpolation).
+
+--max_dti_shell_value                       Maximum shell threshold to be consider as a DTI shell (b <= $max_dti_shell_value).
+                                            This is the default behaviour to select DTI shells.
+--dti_shells                                Shells selected to compute the DTI metrics (generally b <= 1200).
+                                            Please write them between quotes e.g. (--dti_shells "0 300 1000").
+                                            If selected, it will overwrite max_dti_shell_value.
+
+--min_fodf_shell_value                      Minimum shell threshold to be consider as a fODF shell (b >= $min_fodf_shell_value).
+                                            This is the default behaviour to select fODF shells.
+--fodf_shells                               Shells selected to compute the fODF metrics (generally b >= 700).
+                                            Please write them between quotes e.g. (--fodf_shells "0 1000 2000").
+                                            If selected, it will overwrite min_fodf_shell_value.
+
+--run_t1_denoising                          Run T1 denoising ($run_t1_denoising).
+
+--run_resample_t1                           Run resample T1 ($run_resample_t1).
+--t1_resolution                             T1 resolution ($t1_resolution).
+--t1_interpolation                          T1 interpolation method [nn, lin, quad, cubic] ($t1_interpolation).
+
+--number_of_tissues                         Number of tissue classes ($number_of_tissues).
+
+--fa                                        Initial FA threshold to compute the frf ($fa).
+--min_fa                                    Minimum FA threshold to compute the frf ($min_fa).
+--min_nvox                                  Minimum number of voxels to compute the frf ($min_nvox).
+--roi_radius                                Region of interest radius to compute the frf ($roi_radius).
+--set_frf                                   Set manually the frf ($set_frf).
+--manual_frf                                FRF set manually (--manual_frf "$manual_frf").
+
+--mean_frf                                  Mean the frf of all subjects ($mean_frf).
+                                            USE ONLY IF ALL OF SUBJECTS COME FROM THE SAME SCANNER
+                                            AND HAVE THE SAME ACQUISITION.
+
+--sh_order                                  Spherical harmonics order ($sh_order).
+                                            Rules :-sh_order=8 for 45 directions
+                                                   -sh_order=6 for 28 directions
+--basis                                     fODF basis [descoteaux07, tournier07] ($basis).
+--fodf_metrics_a_factor                     Multiplicative factor for AFD max in ventricles ($fodf_metrics_a_factor).
+--relative_threshold                        Relative threshold on fODF amplitude in ]0,1] ($relative_threshold).
+--max_fa_in_ventricle                       Maximal threshold of FA to be considered as ventricule voxel ($max_fa_in_ventricle).
+--min_md_in_ventricle                       Minimal threshold of MD in mm2/s to be considered as ventricule voxel ($min_md_in_ventricle).
+
+
+--sh_fitting                                Compute a Spherical Harmonics fitting onto the DWI, and output the SH coefficients in a Nifti file ($sh_fitting).
+--sh_fitting_basis                          SH basis used for the optional SH fitting [descoteaux07, tournier07] ($sh_fitting_basis).
+--sh_fitting_order                          SH order used for the optional SH fitting; must be an even number ($sh_fitting_order).
+                                            Rules :-sh_order=8 for 45 directions
+                                                   -sh_order=6 for 28 directions
+--sh_fitting_shells                         Shells selected to compute the SH fitting.
+                                            Please write them between quotes e.g. (--sh_fitting_shells "0 1000").
+                                            NOTE: SH fitting works only on single shell. You must include the b0 shell as well.
+
+
+--run_pft_tracking                          Run Particle Filter Tracking (PFT) ($run_pft_tracking).
+
+--pft_seeding_mask_type                     [PFT] seeding mask type [wm, interface, fa] ($pft_seeding_mask_type).
+--pft_fa_seeding_mask_threshold             [PFT] FA threshold for FA seeding mask ($pft_fa_seeding_mask_threshold).
+
+--pft_algo                                  [PFT] Tracking algorithm [prob, det] ($pft_algo).
+--pft_seeding                               [PFT] Seeding type [npv, nt] ($pft_seeding).
+--pft_nbr_seeds                             [PFT] Number of seeds related to the seeding type param ($pft_nbr_seeds).
+--pft_step                                  [PFT] Step size ($pft_step).
+--pft_theta                                 [PFT] Maximum angle between 2 steps ($pft_theta).
+--pft_min_len                               [PFT] Minimum length ($pft_min_len).
+--pft_max_len                               [PFT] Maximum length ($pft_max_len).
+--pft_compress_streamlines                  [PFT] Compress streamlines ($pft_compress_streamlines).
+--pft_compress_value                        [PFT] Compression error threshold ($pft_compress_value).
+--pft_random_seed                           [PFT] List of random seed numbers for the random number generator ($pft_random_seed).
+                                            Please write them as list separated using commat WITHOUT SPACE e.g. (--pft_random_seed 0,1,2)
+
+--run_local_tracking                        Run Local Tracking ($run_local_tracking).
+
+--local_seeding_mask_type                   [LOCAL] seeding mask type [wm, fa] ($local_seeding_mask_type).
+--local_fa_seeding_mask_threshold           [LOCAL] FA threshold for FA seeding mask ($local_fa_seeding_mask_threshold).
+
+--local_tracking_mask_type                  [LOCAL] tracking mask type [wm, fa] ($local_tracking_mask_type).
+--local_fa_tracking_mask_threshold          [LOCAL] FA threshold for FA tracking mask ($local_fa_tracking_mask_threshold).
+
+--local_algo                                [LOCAL] Tracking algorithm [prob, det] ($local_algo).
+--local_seeding                             [LOCAL] Seeding type [npv, nt] ($local_seeding).
+--local_nbr_seeds                           [LOCAL] Number of seeds related to the seeding type param ($local_nbr_seeds).
+--local_step                                [LOCAL] Step size ($local_step).
+--local_theta                               [LOCAL] Maximum angle between 2 steps ($local_theta).
+--local_min_len                             [LOCAL] Minimum length ($local_min_len).
+--local_max_len                             [LOCAL] Maximum length ($local_max_len).
+--local_compress_streamlines                [LOCAL] Compress streamlines ($local_compress_streamlines).
+--local_compress_value                      [LOCAL] Compression error threshold ($local_compress_value).
+--local_random_seed                         [LOCAL] List of random seed numbers for the random number generator ($local_random_seed).
+                                            Please write them as list separated using commat WITHOUT SPACE e.g. (--local_random_seed 0,1,2)
+--local_batch_size_gpu                      [LOCAL-GPU] Approximate size of GPU batches (number of streamlines to track in parallel) ($local_batch_size_gpu).
+
+--template_t1                               Path to the template T1 directory for antsBrainExtraction.
+                                            The folder must contain t1_template.nii.gz and t1_brain_probability_map.nii.gz.
+                                            The default path is the human_data folder in the singularity container ($template_t1).
+
+--processes_brain_extraction_t1             Number of processes for T1 brain extraction task ($processes_brain_extraction_t1).
+--processes_denoise_dwi                     Number of processes for DWI denoising task ($processes_denoise_dwi).
+--processes_denoise_t1                      Number of processes for T1 denoising task ($processes_denoise_t1).
+--processes_eddy                            Number of processes for eddy task ($processes_eddy).
+--processes_fodf                            Number of processes for fODF task ($processes_fodf).
+--processes_registration                    Number of processes for registration task ($processes_registration).
+
+--output_dir                                Directory where to write the final results.
+                                            By default, will be in "./results"
+
+--processes                                 The number of parallel processes to launch ($cpu_count).
+                                            Only affects the local scheduler.
+
+AVAILABLE PROFILES (using -profile option (e.g. -profile use_gpu,fully_reproducible))
+
+macos                                       When this profile is used, TractoFlow will modify a parameter (scratch) for MacOS users.
+
+use_gpu                                     When this profile is used, TractoFlow will use eddy_cuda for Eddy process.
+                                            If local tracking is also enabled, Tractoflow will use the gpu implementation of scil_compute_local_tracking.py.
+                                            This feature is available with NVidia GPUs only. Without this profile, TractoFlow will run eddy_openmp.
+
+fully_reproducible                          When this profile is used, all the parameters will be set to have 100% reproducible results.
+                                            This profile consist to set multi-thread parameters to be fully reproducible [Theaud20].
+
+skip_preprocessing                          When this profile is used, TractoFlow will skip some preprocessing steps (Resampling, Eddy/Topup and DWI denoising).
+                                            This profile is useful to process the Human Connectome Project (HCP) data.
+
+cbrain                                      When this profile is used, Nextflow will copy all the output files in publishDir and not use symlinks.
+
+ABS                                         When this profile is used, TractoFlow-ABS (Atlas Based Segmentation) is used.
+                                            This profile must be used for pathological data.
+                                            The aparc+aseg.nii.gz and wmparc.nii.gz must be in the same space than t1.nii.gz.
+                                            In order to use BIDS, either use the root structure or bids and freesurfer structures.
+
+bundling                                    When this profile is used, it will activate custom tracking parameters to improve recobundle results.
+                                            Local tracking will be enable with fa seeding mask and tracking mask.
+
+connectomics                                When this profile is used, it will activate custom tracking parameters to improve connectomics analysis.
+
+NOTES
+
+The 'scilpy/scripts' folder should be in your PATH environment variable. Not necessary if the
+Singularity container is used.
+
+The intermediate working directory is, by default, set to './work'.
+To change it, use the '-w WORK_DIR' argument.
+
+The default config file is tractoflow/nextflow.config.
+Use '-C config_file.config' to specify a non-default configuration file.
+The '-C config_file.config' must be inserted after the nextflow call
+like 'nextflow -C config_file.config run ...'.
