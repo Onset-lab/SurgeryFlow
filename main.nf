@@ -2027,7 +2027,7 @@ nii_for_dicom
 
 process Nifti_To_Dicom{
     cpus 1
-    publishDir "./results", mode: 'copy'
+    publishDir "${params.output_dir}", mode: 'copy'
 
     input:
     set sid, file(nifti), file(dicom) from nii_dicom_for_conversion
