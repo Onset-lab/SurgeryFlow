@@ -2039,5 +2039,11 @@ process Nifti_To_Dicom{
     String nifti_list =  nifti.join(" ").replace(".nii.gz", "").replace(sid+"__", "")
     """
     convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow/ -d MR --study_description "SurgeryFlow" --protocol_name "SurgeryFlow" --series_description ${nifti_list} -r ${dicom}
+    
+    for i in ${prefix}__SurgeryFlow/*; do
+        dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0021)=\${date}"\
+            -m "(0008,0030)=\${time}" -i "(2025,0010)=SurgeryFlow"\
+            -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow"
+    done
     """
 }
