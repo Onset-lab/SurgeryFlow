@@ -1885,7 +1885,7 @@ process Clean_Bundles {
     file "${sid}__README.txt" optional true
 
     shell:
-    bundles_names = params.bundles.replaceFirst("['\"]$", "").replaceFirst("^['\"]", "")
+    bundles_names = params.bundles.replace('"', '').replace("'", "")
     '''
     for bundle in !{bundles_names};
     do
