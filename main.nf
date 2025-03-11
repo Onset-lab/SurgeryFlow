@@ -1885,8 +1885,9 @@ process Clean_Bundles {
     file "${sid}__README.txt" optional true
 
     shell:
+    bundles_names = params.bundles.replaceFirst("['\"]$", "").replaceFirst("^['\"]", "")
     '''
-    for bundle in !{params.bundles};
+    for bundle in !{bundles_names};
     do
         if [ -f *${bundle}.trk ]; then
             scil_apply_transform_to_tractogram.py *${bundle}.trk !{anat} !{mat} --in_deformation !{warp} *${bundle}.trk --reverse_operation -f
