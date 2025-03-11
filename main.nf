@@ -1957,8 +1957,8 @@ process Lesion_On_Anat{
 bundles_filtered_for_reg
     .map{it -> if(rois_count.size() > 0){it}}
     .mix(bundles_cleaned_for_reg)
-    .join(anat_for_dicom)
-    .join(lesion_mask_on_anat, remainder: true)
+    .join(anat_for_dicom).view()
+    .join(lesion_mask_on_anat, remainder: true).view()
     .set{bundles_cleaned_anat_for_reg}
 
 
