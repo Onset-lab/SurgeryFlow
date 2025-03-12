@@ -2040,6 +2040,8 @@ process Nifti_To_Dicom{
     String nifti_list =  nifti.join(" ").replace(".nii.gz", "").replace(sid+"__", "")
     def version = workflow.manifest.version
     """
+    date=\$(date '+%Y%m%d')
+    time=\$(date '+%H%M%S')
     convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow/ -d MR --study_description "SurgeryFlow" --protocol_name "SurgeryFlow" --series_description ${nifti_list} -r ${dicom}
     
     for i in ${sid}__SurgeryFlow/*; do
