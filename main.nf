@@ -1717,15 +1717,11 @@ process PFT_Tracking {
         """
 }
 
-wm_mask_for_local_tracking_mask
-    .join(fa_for_local_tracking_mask)
-    .set{wm_fa_for_local_tracking_mask}
-
 process Local_Tracking_Mask {
     cpus 1
 
     input:
-    set sid, file(wm), file(fa) from wm_fa_for_local_tracking_mask
+    set sid, file(fa) from fa_for_local_tracking_mask
 
     output:
     set sid, "${sid}__local_tracking_mask.nii.gz" into tracking_mask_for_local
@@ -1734,29 +1730,20 @@ process Local_Tracking_Mask {
         params.run_local_tracking
 
     script:
-    if (params.local_tracking_mask_type == "wm")
-        """
-        mv $wm ${sid}__local_tracking_mask.nii.gz
-        """
-    else if (params.local_tracking_mask_type == "fa")
-        """
-        export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-        export OMP_NUM_THREADS=1
-        export OPENBLAS_NUM_THREADS=1
-        mrcalc $fa $params.local_fa_tracking_mask_threshold -ge ${sid}__local_tracking_mask.nii.gz\
-          -datatype uint8
-        """
+    """
+    export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
+    export OMP_NUM_THREADS=1
+    export OPENBLAS_NUM_THREADS=1
+    mrcalc $fa $params.local_fa_tracking_mask_threshold -ge ${sid}__local_tracking_mask.nii.gz\
+        -datatype uint8
+    """
 }
-
-wm_mask_for_local_seeding_mask
-    .join(fa_for_local_seeding_mask)
-    .set{wm_fa_for_local_seeding_mask}
 
 process Local_Seeding_Mask {
     cpus 1
 
     input:
-    set sid, file(wm), file(fa) from wm_fa_for_local_seeding_mask
+    set sid, file(fa) from fa_for_local_seeding_mask
 
     output:
     set sid, "${sid}__local_seeding_mask.nii.gz" into tracking_seeding_mask_for_local
@@ -1765,17 +1752,12 @@ process Local_Seeding_Mask {
         params.run_local_tracking
 
     script:
-    if (params.local_seeding_mask_type == "wm")
-        """
-        mv $wm ${sid}__local_seeding_mask.nii.gz
-        """
-    else if (params.local_seeding_mask_type == "fa")
-        """
-        export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
-        export OMP_NUM_THREADS=1
-        export OPENBLAS_NUM_THREADS=1
-        mrcalc $fa $params.local_fa_seeding_mask_threshold -ge ${sid}__local_seeding_mask.nii.gz -datatype uint8
-        """
+    """
+    export ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS=1
+    export OMP_NUM_THREADS=1
+    export OPENBLAS_NUM_THREADS=1
+    mrcalc $fa $params.local_fa_seeding_mask_threshold -ge ${sid}__local_seeding_mask.nii.gz -datatype uint8
+    """
 }
 
 fodf_for_local_tracking
