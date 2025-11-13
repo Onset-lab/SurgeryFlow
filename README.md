@@ -3,7 +3,7 @@ SurgeryFlow pipeline
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/Onset-lab/SurgeryFlow)](https://github.com/Onset-lab/SurgeryFlow/releases)
 [![Nextflow](https://img.shields.io/badge/nextflow-21.10.6-brightgreen.svg)](https://www.nextflow.io/)
 
-<img src="https://onset-documentation.readthedocs.io/en/latest/SurgeryFlow.png" width="250">
+<img src="[https://docs.theonsetlab.com/SurgeryFlow.png" width="250">
 
 The SurgeryFlow pipeline is a fully automated and reproducible tractography pipeline that extract requested white matter bundles.
 SurgeryFlow takes raw DICOM directory (containing DWI, T1, and a reversed phase encoded b=0 if available) and the list of requested bundles.
