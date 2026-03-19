@@ -1976,14 +1976,16 @@ process Bundles_On_Anat{
     String bundles_list = bundles.join(", ").replace(',', '')
     Integer nb_bundles = bundles.size() < 33 ? bundles.size() : 1
     """
+    mult_factor=$(echo "${nb_bundles} 100" | awk '{print int(\$1 * \$2)}')
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz anat_normalize.nii.gz -f
-    scil_image_math.py multiplication 300 anat_normalize.nii.gz anat_normalize_300.nii.gz -f
+    scil_image_math.py multiplication \${mult_factor} anat_normalize.nii.gz anat_normalize_\${mult_factor}.nii.gz -f
     mkdir bundles_native/
-    cnt=25
+    cnt=100
     nb_bundles=${nb_bundles}
     echo ${nb_bundles}
-    step=\$(echo 275 \${nb_bundles} | awk '{print \$1 / (\$2)}')
+    split_value=$(echo \${mult_factor} \${cnt} | awk '{print int(\$1 - \$2)}')
+    step=\$(echo \${split_value} \${nb_bundles} | awk '{print int(\$1 / \$2)}')
     if [ \$nb_bundles -eq 1 ]; then
         cnt=\$step
     fi
@@ -1996,7 +1998,7 @@ process Bundles_On_Anat{
             scil_compute_streamlines_density_map.py \$b bundles_native/\${bname}_bin.nii.gz -f --binary
             scil_image_math.py convert bundles_native/\${bname}_bin.nii.gz bundles_native/\${bname}_f32.nii.gz --data_type float32 -f
             scil_image_math.py multiplication \${cnt} bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_\${cnt}.nii.gz -f
-            ImageMath 3 ${sid}__\${bname}_\${cnt}.nii.gz addtozero bundles_native/mask_\${bname}_\${cnt}.nii.gz anat_normalize_300.nii.gz
+            ImageMath 3 ${sid}__\${bname}_\${cnt}.nii.gz addtozero bundles_native/mask_\${bname}_\${cnt}.nii.gz anat_normalize_\${mult_factor}.nii.gz
             mrconvert ${sid}__\${bname}_\${cnt}.nii.gz ${sid}__\${bname}_\${cnt}.nii.gz -stride -2,-1,3 -force
             cnt=\$(echo \$cnt \${step} | awk '{print \$1 + \$2}');
         fi
@@ -2006,16 +2008,14 @@ process Bundles_On_Anat{
         mv ${lesion} bundles_native
         echo "moved"
     fi
-    ls -1 bundles_native
-    echo \$(ls -1 bundles_native/*mask* | wc -l)
-    if [ \$(ls -1 bundles_native/*mask* | wc -l) -eq 1 ]; then
-        mv bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz
-    else
-        scil_image_math.py addition bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz -f --data_type float32
+    if [ \$(ls -1 bundles_native/*mask* | wc -l) -gt 1 ]; then
+        scil_image_math.py addition bundles_native/*mask_*_L_*.nii.gz mask_left_bdls.nii.gz -f --data_type float32
+        scil_image_math.py addition bundles_native/*mask_*_R_*.nii.gz mask_right_bdls.nii.gz -f --data_type float32
+        ImageMath 3 ${sid}__left_bundles.nii.gz addtozero mask_left_bdls.nii.gz anat_normalize_\${mult_factor}.nii.gz
+        mrconvert ${sid}__left_bundles.nii.gz ${sid}__left_bundles.nii.gz -stride -2,-1,3 -force
+        ImageMath 3 ${sid}__right_bundles.nii.gz addtozero mask_right_bdls.nii.gz anat_normalize_\${mult_factor}.nii.gz
+        mrconvert ${sid}__right_bundles.nii.gz ${sid}__right_bundles.nii.gz -stride -2,-1,3 -force
     fi
-
-    ImageMath 3 ${sid}__all_bundles.nii.gz addtozero mask_all_bdls.nii.gz anat_normalize_300.nii.gz
-    mrconvert ${sid}__all_bundles.nii.gz ${sid}__all_bundles.nii.gz -stride -2,-1,3 -force
     """
 }
 
