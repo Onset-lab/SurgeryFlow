@@ -1976,7 +1976,7 @@ process Bundles_On_Anat{
     String bundles_list = bundles.join(", ").replace(',', '')
     Integer nb_bundles = bundles.size() < 33 ? bundles.size() : 1
     """
-    mult_factor=$(echo "${nb_bundles} 100" | awk '{print int(\$1 * \$2)}')
+    mult_factor=\$(echo "${nb_bundles} 100" | awk '{print int(\$1 * \$2)}')
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz anat_normalize.nii.gz -f
     scil_image_math.py multiplication \${mult_factor} anat_normalize.nii.gz anat_normalize_\${mult_factor}.nii.gz -f
@@ -1984,7 +1984,7 @@ process Bundles_On_Anat{
     cnt=100
     nb_bundles=${nb_bundles}
     echo ${nb_bundles}
-    split_value=$(echo \${mult_factor} \${cnt} | awk '{print int(\$1 - \$2)}')
+    split_value=\$(echo \${mult_factor} \${cnt} | awk '{print int(\$1 - \$2)}')
     step=\$(echo \${split_value} \${nb_bundles} | awk '{print int(\$1 / \$2)}')
     if [ \$nb_bundles -eq 1 ]; then
         cnt=\$step
