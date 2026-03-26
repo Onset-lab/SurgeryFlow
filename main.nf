@@ -1881,7 +1881,7 @@ process Clean_Bundles {
     set sid, file(bundles), file(anat), file(mat), file(warp) from all_bundles_transfo_for_clean_average
 
     output:
-    set sid, "${sid}__*_cleaned.trk" into bundles_cleaned_for_reg, bundles_cleaned_for_filter optional true
+    set sid, "${sid}__*_cleaned.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_filter optional true
     file "${sid}__README.txt" optional true
 
     shell:
@@ -1893,6 +1893,7 @@ process Clean_Bundles {
             scil_apply_transform_to_tractogram.py *${bundle}.trk !{anat} !{mat} --in_deformation !{warp} *${bundle}.trk --reverse_operation -f
             scil_outlier_rejection.py *${bundle}.trk "!{sid}__${bundle}_cleaned.trk" \
                 --alpha !{params.outlier_alpha}
+            scil_convert_tractogram.py "!{sid}__${bundle}_cleaned.trk" "!{sid}__${bundle}_cleaned.tck" --data_type uint8 -f
         else
             echo "Bundle ${bundle} not found." >> !{sid}__README.txt
         fi
@@ -1924,7 +1925,7 @@ process Filter_Bundles {
     '''
     for bundle in !{params.bundles};
     do
-        scil_filter_tractogram.py *${bundle}*.trk !{sid}__${bundle}_filtered.trk \
+        scil_filter_tractogram.py *${bundle}*.tck !{sid}__${bundle}_filtered.tck \
             !{rois_args} -f -v
     done
     '''
@@ -1958,71 +1959,7 @@ process Lesion_On_Anat{
 bundles_filtered_for_reg
     .map{it -> if(rois_count.size() > 0){it}}
     .mix(bundles_cleaned_for_reg)
-    .join(anat_for_dicom).view()
-    .join(lesion_mask_on_anat, remainder: true).view()
-    .set{bundles_cleaned_anat_for_reg}
-
-
-process Bundles_On_Anat{
-    cpus params.register_processes
-
-    input:
-    set sid, file(bundles), file(anat), file(lesion) from bundles_cleaned_anat_for_reg
-
-    output:
-    set sid, "${sid}__*_*.nii.gz" into nii_for_dicom
-
-    script:
-    String bundles_list = bundles.join(", ").replace(',', '')
-    Integer nb_bundles = bundles.size() < 33 ? bundles.size() : 1
-    """
-    mult_factor=\$(echo "${nb_bundles} 100" | awk '{print int(\$1 * \$2)}')
-    scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
-    scil_image_math.py normalize_max anat_f32.nii.gz anat_normalize.nii.gz -f
-    scil_image_math.py multiplication \${mult_factor} anat_normalize.nii.gz anat_normalize_\${mult_factor}.nii.gz -f
-    mkdir bundles_native/
-    cnt=100
-    nb_bundles=${nb_bundles}
-    echo ${nb_bundles}
-    split_value=\$(echo \${mult_factor} \${cnt} | awk '{print int(\$1 - \$2)}')
-    step=\$(echo \${split_value} \${nb_bundles} | awk '{print int(\$1 / \$2)}')
-    if [ \$nb_bundles -eq 1 ]; then
-        cnt=\$step
-    fi
-    for b in ${bundles_list};
-    do
-        if [ -f \${b} ]; then
-            bname=\${b%%_cleaned.trk}
-            bname=\${bname%%_filtered.trk}
-            bname=\${bname##*__}
-            scil_compute_streamlines_density_map.py \$b bundles_native/\${bname}_bin.nii.gz -f --binary
-            scil_image_math.py convert bundles_native/\${bname}_bin.nii.gz bundles_native/\${bname}_f32.nii.gz --data_type float32 -f
-            scil_image_math.py multiplication \${cnt} bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_\${cnt}.nii.gz -f
-            ImageMath 3 ${sid}__\${bname}_\${cnt}.nii.gz addtozero bundles_native/mask_\${bname}_\${cnt}.nii.gz anat_normalize_\${mult_factor}.nii.gz
-            mrconvert ${sid}__\${bname}_\${cnt}.nii.gz ${sid}__\${bname}_\${cnt}.nii.gz -stride -2,-1,3 -force
-            cnt=\$(echo \$cnt \${step} | awk '{print \$1 + \$2}');
-        fi
-    done
-
-    if [ -e ${lesion} ]; then
-        mv ${lesion} bundles_native
-        echo "moved"
-    fi
-    if [ \$(ls -1 bundles_native/*mask* | wc -l) -gt 1 ]; then
-        scil_image_math.py addition bundles_native/*mask_*_L_*.nii.gz mask_left_bdls.nii.gz -f --data_type float32
-        scil_image_math.py addition bundles_native/*mask_*_R_*.nii.gz mask_right_bdls.nii.gz -f --data_type float32
-        ImageMath 3 ${sid}__left_bundles.nii.gz addtozero mask_left_bdls.nii.gz anat_normalize_\${mult_factor}.nii.gz
-        mrconvert ${sid}__left_bundles.nii.gz ${sid}__left_bundles.nii.gz -stride -2,-1,3 -force
-        ImageMath 3 ${sid}__right_bundles.nii.gz addtozero mask_right_bdls.nii.gz anat_normalize_\${mult_factor}.nii.gz
-        mrconvert ${sid}__right_bundles.nii.gz ${sid}__right_bundles.nii.gz -stride -2,-1,3 -force
-    fi
-    """
-}
-
-nii_for_dicom
-    .mix(lesion_for_dicom)
-    .groupTuple(by:0)
-    .map{id, nii -> [id, nii.flatten()]}
+    .join(anat_for_dicom)
     .join(dicom)
     .set{nii_dicom_for_conversion}
 
@@ -2031,22 +1968,23 @@ process Nifti_To_Dicom{
     publishDir "${params.output_dir}", mode: 'copy'
 
     input:
-    set sid, file(nifti), file(dicom) from nii_dicom_for_conversion
+    set sid, file(tck), file(anat), file(dicom) from nii_dicom_for_conversion
 
     output:
     file "*__SurgeryFlow"
 
     script:
-    String nifti_list =  nifti.join(" ").replace(".nii.gz", "").replace(sid+"__", "")
     def version = workflow.manifest.version
     """
     date=\$(date '+%Y%m%d')
-    time=\$(date '+%H%M%S')
-    convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow/ -d MR --study_description "SurgeryFlow" --protocol_name "SurgeryFlow" --series_description ${nifti_list} -r ${dicom}
-    
-    for i in ${sid}__SurgeryFlow/*; do
-        dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0021)=\${date}"\
-            -m "(0008,0030)=\${time}" -i "(2025,0010)=SurgeryFlow"\
+    current_time=\$(date '+%H%M%S')
+
+    importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${anat} -t ${tck}
+
+    find ${sid}__SurgeryFlow -type f | while read i; do
+        dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0020)=\${date}"\
+            -m "(0008,0021)=\${date}" -m "(0008,0030)=\${current_time}"\
+            -m "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
             -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow"
     done
     """
