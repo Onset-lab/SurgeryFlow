@@ -1963,7 +1963,7 @@ bundles_filtered_for_reg
     .join(dicom)
     .set{nii_dicom_for_conversion}
 
-process Nifti_To_Dicom{
+process Bundles_To_Dicom{
     cpus 1
     publishDir "${params.output_dir}", mode: 'copy'
 
@@ -1978,8 +1978,8 @@ process Nifti_To_Dicom{
     """
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
-    accession_number=\$(dcmdump +P "(0008,0050)" ${dicom} | grep -o "\[.*\]" | tr -d "[]")
-    institution_name=\$(dcmdump +P "(0008,0080)" ${dicom} | grep -o "\[.*\]" | tr -d "[]")
+    accession_number=\$(dcmdump -m AccessionNumber ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
+    institution_name=\$(dcmdump -m InstitutionName ${dicom} | grep InstitutionName | cut -d[ -f2 | cut -d] -f1)
 
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz ${sid}__anat_norm.nii.gz -f
