@@ -1978,8 +1978,8 @@ process Bundles_To_Dicom{
     """
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
-    accession_number=\$(dcmdump -m AccessionNumber ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
-    institution_name=\$(dcmdump -m InstitutionName ${dicom} | grep InstitutionName | cut -d[ -f2 | cut -d] -f1)
+    accession_number=\$(dcmdump +P AccessionNumber -s ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
+    institution_name=\$(dcmdump +P InstitutionName -s ${dicom} | grep InstitutionName | cut -d[ -f2 | cut -d] -f1)
 
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz ${sid}__anat_norm.nii.gz -f
