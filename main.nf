@@ -1979,8 +1979,8 @@ process Nifti_To_Dicom{
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
 
-    scil_volume_math.py normalize_max ${anat} ${sid}__anat_norm.nii.gz -f
-    scil_volume_math.py multiplication ${sid}__anat_norm.nii.gz 1000 ${sid}__anat_norm.nii.gz -f
+    scil_image_math.py normalize_max ${anat} ${sid}__anat_norm.nii.gz -f
+    scil_image_math.py multiplication ${sid}__anat_norm.nii.gz 1000 ${sid}__anat_norm.nii.gz -f
 
     importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${sid}__anat_norm.nii.gz -t ${tck}
 
