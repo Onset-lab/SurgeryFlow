@@ -1985,11 +1985,11 @@ process Nifti_To_Dicom{
     importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${sid}__anat_norm.nii.gz -t ${tck}
 
     find ${sid}__SurgeryFlow -type f | while read i; do
-        dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0020)=\${date}"\
-            -m "(0008,0021)=\${date}" -m "(0008,0030)=\${current_time}"\
-            -m "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
-            -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow"\
-            -m "(0062,0006)=SurgeryFlow"
+        dcmodify \$i -nb -i "(0008,0070)=OnsetLab" -i "(0008,0020)=\${date}"\
+            -i "(0008,0021)=\${date}" -i "(0008,0030)=\${current_time}"\
+            -i "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
+            -i "(2025,0011)=${version}" -i "(0018,1030)=SurgeryFlow"\
+            -i "(0062,0006)=SurgeryFlow"
     done
     """
 }
