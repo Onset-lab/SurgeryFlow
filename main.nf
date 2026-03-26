@@ -1978,8 +1978,11 @@ process Nifti_To_Dicom{
     """
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
+    accession_number=\$(dcmdump +P "(0008,0050)" ${dicom} | grep -oP '(?<=\[).*(?=\])')
+    institution_name=\$(dcmdump +P "(0008,0080)" ${dicom} | grep -oP '(?<=\[).*(?=\])')
 
-    scil_image_math.py normalize_max ${anat} ${sid}__anat_norm.nii.gz -f
+    scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
+    scil_image_math.py normalize_max anat_f32.nii.gz ${sid}__anat_norm.nii.gz -f
     scil_image_math.py multiplication ${sid}__anat_norm.nii.gz 1000 ${sid}__anat_norm.nii.gz -f
 
     importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${sid}__anat_norm.nii.gz -t ${tck}
@@ -1989,7 +1992,8 @@ process Nifti_To_Dicom{
             -i "(0008,0021)=\${date}" -i "(0008,0030)=\${current_time}"\
             -i "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
             -i "(2025,0011)=${version}" -i "(0018,1030)=SurgeryFlow"\
-            -i "(0062,0006)=SurgeryFlow"
+            -i "(0062,0006)=SurgeryFlow"\
+            -m "(0008,0050)=\${accession_number}" -m "(0008,0080)=\${institution_name}"
     done
     """
 }
