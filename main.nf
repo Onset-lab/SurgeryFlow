@@ -1993,7 +1993,7 @@ process Bundles_To_Dicom{
             -i "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
             -i "(2025,0011)=${version}" -i "(0018,1030)=SurgeryFlow"\
             -i "(0062,0006)=SurgeryFlow"\
-            -m "(0008,0050)=\${accession_number}" -m "(0008,0080)=\${institution_name}"
+            -i "(0008,0050)=\${accession_number}" -i "(0008,0080)=\${institution_name}"
     done
     """
 }
