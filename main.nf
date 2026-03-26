@@ -1893,7 +1893,7 @@ process Clean_Bundles {
             scil_apply_transform_to_tractogram.py *${bundle}.trk !{anat} !{mat} --in_deformation !{warp} *${bundle}.trk --reverse_operation -f
             scil_outlier_rejection.py *${bundle}.trk "!{sid}__${bundle}_cleaned.trk" \
                 --alpha !{params.outlier_alpha}
-            scil_convert_tractogram.py "!{sid}__${bundle}_cleaned.trk" "!{sid}__${bundle}_cleaned.tck" --data_type uint8 -f
+            scil_convert_tractogram.py "!{sid}__${bundle}_cleaned.trk" "!{sid}__${bundle}_cleaned.tck" -f
         else
             echo "Bundle ${bundle} not found." >> !{sid}__README.txt
         fi
