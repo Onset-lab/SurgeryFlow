@@ -1988,7 +1988,8 @@ process Nifti_To_Dicom{
         dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0020)=\${date}"\
             -m "(0008,0021)=\${date}" -m "(0008,0030)=\${current_time}"\
             -m "(0008,1030)=SurgeryFlow" -i "(2025,0010)=SurgeryFlow"\
-            -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow"
+            -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow"\
+            -m "(0062,0006)=SurgeryFlow"
     done
     """
 }
