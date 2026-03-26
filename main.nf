@@ -1979,7 +1979,10 @@ process Nifti_To_Dicom{
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
 
-    importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${anat} -t ${tck}
+    scil_volume_math.py normalize_max ${anat} ${sid}__anat_norm.nii.gz -f
+    scil_volume_math.py multiplication ${sid}__anat_norm.nii.gz 1000 ${sid}__anat_norm.nii.gz -f
+
+    importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${sid}__anat_norm.nii.gz -t ${tck}
 
     find ${sid}__SurgeryFlow -type f | while read i; do
         dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0020)=\${date}"\
