@@ -1978,8 +1978,8 @@ process Nifti_To_Dicom{
     """
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
-    accession_number=\$(dcmdump +P "(0008,0050)" ${dicom} | grep -oP '(?<=\[).*(?=\])')
-    institution_name=\$(dcmdump +P "(0008,0080)" ${dicom} | grep -oP '(?<=\[).*(?=\])')
+    accession_number=\$(dcmdump +P "(0008,0050)" ${dicom} | grep -o "\[.*\]" | tr -d "[]")
+    institution_name=\$(dcmdump +P "(0008,0080)" ${dicom} | grep -o "\[.*\]" | tr -d "[]")
 
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz ${sid}__anat_norm.nii.gz -f
