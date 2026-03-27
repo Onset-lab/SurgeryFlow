@@ -1881,7 +1881,7 @@ process Clean_Bundles {
     set sid, file(bundles), file(anat), file(mat), file(warp) from all_bundles_transfo_for_clean_average
 
     output:
-    set sid, "${sid}__*_cleaned.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_filter optional true
+    set sid, "*.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_filter optional true
     file "${sid}__README.txt" optional true
 
     shell:
@@ -1893,7 +1893,7 @@ process Clean_Bundles {
             scil_apply_transform_to_tractogram.py *${bundle}.trk !{anat} !{mat} --in_deformation !{warp} *${bundle}.trk --reverse_operation -f
             scil_outlier_rejection.py *${bundle}.trk "!{sid}__${bundle}_cleaned.trk" \
                 --alpha !{params.outlier_alpha}
-            scil_convert_tractogram.py "!{sid}__${bundle}_cleaned.trk" "!{sid}__${bundle}_cleaned.tck" -f
+            scil_convert_tractogram.py "!{sid}__${bundle}_cleaned.trk" "${bundle}.tck" -f
         else
             echo "Bundle ${bundle} not found." >> !{sid}__README.txt
         fi
@@ -1983,9 +1983,9 @@ process Bundles_To_Dicom{
 
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz ${sid}__anat_norm.nii.gz -f
-    scil_image_math.py multiplication ${sid}__anat_norm.nii.gz 1000 ${sid}__anat_norm.nii.gz -f
+    scil_image_math.py multiplication ${sid}__anat_norm.nii.gz 1000 T1.nii.gz -f
 
-    importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n ${sid}__anat_norm.nii.gz -t ${tck}
+    importTractography -d ${dicom} -o ${sid}__SurgeryFlow -n T1.nii.gz -t ${tck}
 
     find ${sid}__SurgeryFlow -type f | while read i; do
         dcmodify \$i -nb -i "(0008,0070)=OnsetLab" -i "(0008,0020)=\${date}"\
