@@ -183,7 +183,12 @@ root = file(params.input)
 
 data_for_sid.map{[it[0]]}.into{ch_sid_dwi; ch_sid_dicom}
 
-Channel.fromPath("$params.input/**/*[!.nii.gz,!DICOMDIR]")
+Channel.fromPath("$params.input/**/*")
+    .filter { file ->
+        !file.name.endsWith('.nii.gz') &&
+        !file.name.equals('DICOMDIR') &&
+        !file.name.startsWith('RE')
+    }
     .first()
     .mix(ch_sid_dicom)
     .collect()
