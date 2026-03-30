@@ -1970,7 +1970,7 @@ bundles_filtered_for_reg
 
 process Bundles_To_Dicom{
     cpus 1
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.out_dicom_dir}", mode: 'copy'
 
     input:
     set sid, file(tck), file(anat), file(dicom) from nii_dicom_for_conversion
