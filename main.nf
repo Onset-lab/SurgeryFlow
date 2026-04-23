@@ -146,7 +146,7 @@ freesurfer_path = Channel.from("")
 bidsignore_path = Channel.from("")
 
 Channel.fromPath("$params.input/**/rois/*.nii.gz")
-    .map{[it.parent.parent.name, it]}
+    .map{[it.parent.parent.name.replaceAll(/[^a-zA-Z0-9]/, ''), it]}
     .into{rois; rois_count}
 
 Channel.fromPath("$params.input/**/lesion.nii.gz")
