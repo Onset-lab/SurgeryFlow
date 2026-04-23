@@ -1955,7 +1955,7 @@ process Lesion_On_Anat{
 }
 
 bundles_filtered_for_reg
-    .map{it -> if(rois_count.count() > 0){it}}
+    .map{it -> if(rois_count.count().value > 0){it}}
     .mix(bundles_cleaned_for_reg)
     .join(anat_for_dicom)
     .join(lesion_mask_on_anat, remainder: true)
