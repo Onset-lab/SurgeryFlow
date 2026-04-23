@@ -153,7 +153,7 @@ Channel.fromPath("$params.input/**/lesion.nii.gz")
     .map{[it.parent.name, it]}
     .set{lesion}
 
-Channel.fromPath("$params.input/*/*", type:"dir")
+Channel.fromPath("$params.input/*/dcm", type:"dir")
     .map{[it.parent.name, it]}
     .set{dicom_dir}
 
