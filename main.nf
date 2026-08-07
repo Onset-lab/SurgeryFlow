@@ -193,7 +193,7 @@ Channel.fromPath("$params.input/**/*")
     .mix(ch_sid_dicom)
     .collect()
     .map{it -> [it[1], it[0]]}
-    .set{dicom}
+    .into{dicom; dicom_for_nifti}
 
 labels_for_reg = Channel
     .fromFilePairs("$root/**/*{aparc+aseg.nii.gz,wmparc.nii.gz}",
@@ -263,7 +263,7 @@ if (params.bids && workflow.profile.contains("ABS") && !params.fs){
     .separate(4)
 
 t1.unique()
-    .into{t1_for_denoise; t1_for_test_denoise; anat_for_dicom; anat_for_lesion; anat_for_reg}
+    .into{t1_for_denoise; t1_for_test_denoise; anat_for_dicom; anat_for_dicom_bundles; anat_for_lesion; anat_for_reg}
 
 check_complex_rev_b0.concat(check_simple_rev_b0).count().into{rev_b0_counter; number_rev_b0_for_compare}
 
@@ -1886,7 +1886,7 @@ process Clean_Bundles {
     set sid, file(bundles), file(anat), file(mat), file(warp) from all_bundles_transfo_for_clean_average
 
     output:
-    set sid, "*.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_filter optional true
+    set sid, "*.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_reg_bis, bundles_cleaned_for_filter optional true
     file "${sid}__README.txt" optional true
 
     shell:
@@ -1919,7 +1919,7 @@ process Filter_Bundles {
     set sid, file(bundles), file(rois) from bundles_rois
 
     output:
-    set sid, "${sid}__*_filtered.trk" into bundles_filtered_for_reg
+    set sid, "${sid}__*_filtered.trk" into bundles_filtered_for_reg, bundles_filtered_for_reg_bis
 
     shell:
     rois_args=""
@@ -1999,6 +1999,103 @@ process Bundles_To_Dicom{
             -i "(2025,0011)=${version}" -i "(0018,1030)=SurgeryFlow"\
             -i "(0062,0002)[0].(0062,0006)=SurgeryFlow"\
             -i "(0008,0050)=\${accession_number}" -i "(0008,0080)=\${institution_name}"
+    done
+    """
+}
+
+bundles_filtered_for_reg_bis
+    .map{it -> if(rois_count.size() > 0){it}}
+    .mix(bundles_cleaned_for_reg_bis)
+    .join(anat_for_dicom_bundles)
+    .join(lesion_mask_on_anat, remainder: true)
+    .set{bundles_cleaned_anat_for_reg}
+
+process Bundles_On_Anat{
+    cpus params.register_processes
+
+    input:
+    set sid, file(bundles), file(anat), file(lesion) from bundles_cleaned_anat_for_reg
+
+    output:
+    set sid, "${sid}__*_*.nii.gz" into nii_for_dicom
+
+    script:
+    String bundles_list = bundles.join(", ").replace(',', '')
+    Integer nb_bundles = bundles.size() < 33 ? bundles.size() : 1
+    """
+    scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
+    scil_image_math.py normalize_max anat_f32.nii.gz anat_normalize.nii.gz -f
+    scil_image_math.py multiplication 300 anat_normalize.nii.gz anat_normalize_300.nii.gz -f
+    mkdir bundles_native/
+    cnt=25
+    nb_bundles=${nb_bundles}
+    echo ${nb_bundles}
+    step=\$(echo 275 \${nb_bundles} | awk '{print \$1 / (\$2)}')
+    if [ \$nb_bundles -eq 1 ]; then
+        cnt=\$step
+    fi
+    for b in ${bundles_list};
+    do
+        if [ -f \${b} ]; then
+            bname=\${b%%_cleaned.trk}
+            bname=\${bname%%_filtered.trk}
+            bname=\${bname##*__}
+            scil_compute_streamlines_density_map.py \$b bundles_native/\${bname}_bin.nii.gz -f --binary
+            scil_image_math.py convert bundles_native/\${bname}_bin.nii.gz bundles_native/\${bname}_f32.nii.gz --data_type float32 -f
+            scil_image_math.py multiplication \${cnt} bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_\${cnt}.nii.gz -f
+            ImageMath 3 ${sid}__\${bname}_\${cnt}.nii.gz addtozero bundles_native/mask_\${bname}_\${cnt}.nii.gz anat_normalize_300.nii.gz
+            mrconvert ${sid}__\${bname}_\${cnt}.nii.gz ${sid}__\${bname}_\${cnt}.nii.gz -stride -2,-1,3 -force
+            cnt=\$(echo \$cnt \${step} | awk '{print \$1 + \$2}');
+        fi
+    done
+
+    if [ -e ${lesion} ]; then
+        mv ${lesion} bundles_native
+        echo "moved"
+    fi
+    ls -1 bundles_native
+    echo \$(ls -1 bundles_native/*mask* | wc -l)
+    if [ \$(ls -1 bundles_native/*mask* | wc -l) -eq 1 ]; then
+        mv bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz
+    else
+        scil_image_math.py addition bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz -f --data_type float32
+    fi
+
+    ImageMath 3 ${sid}__all_bundles.nii.gz addtozero mask_all_bdls.nii.gz anat_normalize_300.nii.gz
+    mrconvert ${sid}__all_bundles.nii.gz ${sid}__all_bundles.nii.gz -stride -2,-1,3 -force
+    """
+}
+
+nii_for_dicom
+    .mix(lesion_for_dicom)
+    .groupTuple(by:0)
+    .map{id, nii -> [id, nii.flatten()]}
+    .join(dicom_for_nifti)
+    .set{nifti_dicom_for_conversion}
+
+process Nifti_To_Dicom{
+    cpus 1
+    publishDir "${params.output_dir}", mode: 'copy'
+
+    input:
+    set sid, file(nifti), file(dicom) from nifti_dicom_for_conversion
+
+    output:
+    file "*__SurgeryFlow"
+
+    script:
+    String nifti_list =  nifti.join(" ").replace(".nii.gz", "").replace(sid+"__", "")
+    def version = workflow.manifest.version
+    """
+    date=\$(date '+%Y%m%d')
+    current_time=\$(date '+%H%M%S')
+
+    convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow/ -d MR --study_description "SurgeryFlow-Medtronic" --protocol_name "SurgeryFlow-Medtronic" --series_description ${nifti_list} -r ${dicom}
+    
+    for i in ${sid}__SurgeryFlow/*; do
+        dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0021)=\${date}"\
+            -m "(0008,0030)=\${current_time}" -i "(2025,0010)=SurgeryFlow-Medtronic"\
+            -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow-Medtronic"
     done
     """
 }
