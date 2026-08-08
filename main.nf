@@ -1970,7 +1970,7 @@ bundles_filtered_for_reg
 
 process Bundles_To_Dicom{
     cpus 1
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.out_dicom_dir}", mode: 'copy'
 
     input:
     set sid, file(tck), file(anat), file(dicom) from nii_dicom_for_conversion
@@ -2075,13 +2075,13 @@ nii_for_dicom
 
 process Nifti_To_Dicom{
     cpus 1
-    publishDir "${params.output_dir}", mode: 'copy'
+    publishDir "${params.out_dicom_dir}", mode: 'copy'
 
     input:
     set sid, file(nifti), file(dicom) from nifti_dicom_for_conversion
 
     output:
-    file "*__SurgeryFlow"
+    file "*__SurgeryFlow_Medtronic"
 
     script:
     String nifti_list =  nifti.join(" ").replace(".nii.gz", "").replace(sid+"__", "")
@@ -2090,7 +2090,7 @@ process Nifti_To_Dicom{
     date=\$(date '+%Y%m%d')
     current_time=\$(date '+%H%M%S')
 
-    convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow/ -d MR --study_description "SurgeryFlow-Medtronic" --protocol_name "SurgeryFlow-Medtronic" --series_description ${nifti_list} -r ${dicom}
+    convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow_Medtronic/ -d MR --study_description "SurgeryFlow-Medtronic" --protocol_name "SurgeryFlow-Medtronic" --series_description ${nifti_list} -r ${dicom}
     
     for i in ${sid}__SurgeryFlow/*; do
         dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0021)=\${date}"\
