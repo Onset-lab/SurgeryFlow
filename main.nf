@@ -2092,7 +2092,7 @@ process Nifti_To_Dicom{
 
     convert_nii2dcm.py ${nifti} ${sid}__SurgeryFlow_Medtronic/ -d MR --study_description "SurgeryFlow-Medtronic" --protocol_name "SurgeryFlow-Medtronic" --series_description ${nifti_list} -r ${dicom}
     
-    for i in ${sid}__SurgeryFlow/*; do
+    for i in ${sid}__SurgeryFlow_Medtronic/*; do
         dcmodify \$i -nb -m "(0008,0070)=OnsetLab" -m "(0008,0021)=\${date}"\
             -m "(0008,0030)=\${current_time}" -i "(2025,0010)=SurgeryFlow-Medtronic"\
             -i "(2025,0011)=${version}" -m "(0018,1030)=SurgeryFlow-Medtronic"
