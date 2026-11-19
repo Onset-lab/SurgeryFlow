@@ -92,6 +92,14 @@ if(params.help) {
                 "local_tracking_gpu":"$params.local_tracking_gpu",
                 "cpu_count":"$cpu_count",
                 "template_t1":"$params.template_t1",
+                "run_report":"$params.run_report",
+                "report_bundle_functions":"$params.report_bundle_functions",
+                "report_normal_volumes":"$params.report_normal_volumes",
+                "report_bundle_names":"$params.report_bundle_names",
+                "report_volume_threshold":"$params.report_volume_threshold",
+                "screenshot_opacity_background":"$params.screenshot_opacity_background",
+                "screenshot_resolution":"$params.screenshot_resolution",
+                "screenshot_zoom":"$params.screenshot_zoom",
                 "processes_brain_extraction_t1":"$params.processes_brain_extraction_t1",
                 "processes_denoise_dwi":"$params.processes_denoise_dwi",
                 "processes_denoise_t1":"$params.processes_denoise_t1",
@@ -193,7 +201,7 @@ Channel.fromPath("$params.input/**/*")
     .mix(ch_sid_dicom)
     .collect()
     .map{it -> [it[1], it[0]]}
-    .into{dicom; dicom_for_nifti}
+    .into{dicom; dicom_for_nifti; dicom_for_report}
 
 labels_for_reg = Channel
     .fromFilePairs("$root/**/*{aparc+aseg.nii.gz,wmparc.nii.gz}",
@@ -263,7 +271,7 @@ if (params.bids && workflow.profile.contains("ABS") && !params.fs){
     .separate(4)
 
 t1.unique()
-    .into{t1_for_denoise; t1_for_test_denoise; anat_for_dicom; anat_for_dicom_bundles; anat_for_lesion; anat_for_reg}
+    .into{t1_for_denoise; t1_for_test_denoise; anat_for_dicom; anat_for_dicom_bundles; anat_for_lesion; anat_for_reg; anat_for_screenshot; anat_for_volume}
 
 check_complex_rev_b0.concat(check_simple_rev_b0).count().into{rev_b0_counter; number_rev_b0_for_compare}
 
@@ -1886,7 +1894,7 @@ process Clean_Bundles {
     set sid, file(bundles), file(anat), file(mat), file(warp) from all_bundles_transfo_for_clean_average
 
     output:
-    set sid, "*.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_reg_bis, bundles_cleaned_for_filter optional true
+    set sid, "*.tck" into bundles_cleaned_for_reg, bundles_cleaned_for_reg_bis, bundles_cleaned_for_filter, bundles_cleaned_for_screenshot optional true
     file "${sid}__README.txt" optional true
 
     shell:
@@ -1919,7 +1927,7 @@ process Filter_Bundles {
     set sid, file(bundles), file(rois) from bundles_rois
 
     output:
-    set sid, "${sid}__*_filtered.trk" into bundles_filtered_for_reg, bundles_filtered_for_reg_bis
+    set sid, "${sid}__*_filtered.trk" into bundles_filtered_for_reg, bundles_filtered_for_reg_bis, bundles_filtered_for_screenshot
 
     shell:
     rois_args=""
@@ -2025,15 +2033,9 @@ process Bundles_On_Anat{
     """
     scil_image_math.py convert ${anat} anat_f32.nii.gz --data_type float32 -f
     scil_image_math.py normalize_max anat_f32.nii.gz anat_normalize.nii.gz -f
-    scil_image_math.py multiplication 300 anat_normalize.nii.gz anat_normalize_300.nii.gz -f
+    scil_image_math.py multiplication 100 anat_normalize.nii.gz anat_normalize_100.nii.gz -f
     mkdir bundles_native/
-    cnt=25
-    nb_bundles=${nb_bundles}
-    echo ${nb_bundles}
-    step=\$(echo 275 \${nb_bundles} | awk '{print \$1 / (\$2)}')
-    if [ \$nb_bundles -eq 1 ]; then
-        cnt=\$step
-    fi
+
     for b in ${bundles_list};
     do
         if [ -f \${b} ]; then
@@ -2042,27 +2044,177 @@ process Bundles_On_Anat{
             bname=\${bname##*__}
             scil_compute_streamlines_density_map.py \$b bundles_native/\${bname}_bin.nii.gz -f --binary --reference ${anat}
             scil_image_math.py convert bundles_native/\${bname}_bin.nii.gz bundles_native/\${bname}_f32.nii.gz --data_type float32 -f
-            scil_image_math.py multiplication \${cnt} bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_\${cnt}.nii.gz -f
-            ImageMath 3 ${sid}__\${bname}_\${cnt}.nii.gz addtozero bundles_native/mask_\${bname}_\${cnt}.nii.gz anat_normalize_300.nii.gz
-            mrconvert ${sid}__\${bname}_\${cnt}.nii.gz ${sid}__\${bname}_\${cnt}.nii.gz -stride -2,-1,3 -force
-            cnt=\$(echo \$cnt \${step} | awk '{print \$1 + \$2}');
+            scil_image_math.py multiplication 300 bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_300.nii.gz -f
+            ImageMath 3 ${sid}__\${bname}_300.nii.gz addtozero bundles_native/mask_\${bname}_300.nii.gz anat_normalize_300.nii.gz
+            mrconvert ${sid}__\${bname}_300.nii.gz ${sid}__\${bname}_300.nii.gz -stride -2,-1,3 -force
         fi
     done
 
     if [ -e ${lesion} ]; then
         mv ${lesion} bundles_native
-        echo "moved"
     fi
-    ls -1 bundles_native
-    echo \$(ls -1 bundles_native/*mask* | wc -l)
-    if [ \$(ls -1 bundles_native/*mask* | wc -l) -eq 1 ]; then
-        mv bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz
-    else
-        scil_image_math.py addition bundles_native/*mask_*.nii.gz mask_all_bdls.nii.gz -f --data_type float32
-    fi
+    """
+}
 
-    ImageMath 3 ${sid}__all_bundles.nii.gz addtozero mask_all_bdls.nii.gz anat_normalize_300.nii.gz
-    mrconvert ${sid}__all_bundles.nii.gz ${sid}__all_bundles.nii.gz -stride -2,-1,3 -force
+/* ------------------------------------------------------------------------ *
+ *  SurgeryFlow PDF report (onset_create_surgeryflow_report)                 *
+ * ------------------------------------------------------------------------ */
+
+// Symlink each bundle under its plain name (e.g. bundles/AF_L.tck), which is
+// the key used in the JSON files of the report.
+def link_bundles(sid, bundles) {
+    def links = [bundles].flatten().collect{ b ->
+        String name = b.getName()
+            .replaceAll(/\.(tck|trk)$/, '')
+            .replaceFirst("^${sid}__", '')
+            .replaceAll(/_(cleaned|filtered)$/, '')
+        "ln -s ../${b.getName()} bundles/${name}.${b.getExtension()}"
+    }
+    return "mkdir bundles\n" + links.join("\n")
+}
+
+bundles_filtered_for_screenshot
+    .map{it -> if(rois_count.size() > 0){it}}
+    .mix(bundles_cleaned_for_screenshot)
+    .into{bundles_for_screenshot; bundles_for_volume}
+
+bundles_for_screenshot
+    .join(anat_for_screenshot)
+    .set{bundles_anat_for_screenshot}
+
+process Screenshot_Bundles {
+    cpus 1
+
+    when:
+    params.run_report
+
+    input:
+    set sid, file(bundles), file(anat) from bundles_anat_for_screenshot
+
+    output:
+    set sid, "${sid}__all_bundles.png", "${sid}__bundle_screenshots" into screenshots_for_report
+
+    script:
+    String options = "--opacity_background ${params.screenshot_opacity_background} " +
+                     "--resolution_of_thumbnails ${params.screenshot_resolution} " +
+                     "--zoom ${params.screenshot_zoom} --no_information --reference ${anat} -f"
+    """
+    ${link_bundles(sid, bundles)}
+    mkdir ${sid}__bundle_screenshots
+
+    # The mosaic is one column of square views: split it into views, trim the
+    # black background of each one and arrange them on a grid of 3 columns.
+    to_grid() {
+        convert \$1 -crop ${params.screenshot_resolution}x${params.screenshot_resolution} +repage \
+            -fuzz 4% -trim +repage -bordercolor black -border 15 miff:- \
+            | montage - -tile 3x -geometry +0+0 -background black \$2
+    }
+
+    # One image per bundle (6 views on 2 rows), then a global image with all
+    # the bundles. The mosaic script empties its output folder, so it writes
+    # in the cwd.
+    for b in bundles/*; do
+        bname=\$(basename \${b%.*})
+        scil_visualize_bundles_mosaic.py ${anat} \$b mosaic.png ${options}
+        to_grid mosaic.png ${sid}__bundle_screenshots/\${bname}.png
+    done
+
+    scil_streamlines_math.py concatenate bundles/* all_bundles.trk --reference ${anat} -f
+    scil_visualize_bundles_mosaic.py ${anat} all_bundles.trk mosaic.png ${options}
+    to_grid mosaic.png ${sid}__all_bundles.png
+    rm mosaic.png all_bundles.trk
+    """
+}
+
+bundles_for_volume
+    .join(anat_for_volume)
+    .set{bundles_anat_for_volume}
+
+process Bundle_Volumes {
+    cpus 1
+
+    when:
+    params.run_report
+
+    input:
+    set sid, file(bundles), file(anat) from bundles_anat_for_volume
+
+    output:
+    set sid, "${sid}__bundle_volumes.json" into volumes_for_report
+
+    script:
+    """
+    ${link_bundles(sid, bundles)}
+    mkdir volumes
+    for b in bundles/*; do
+        bname=\$(basename \${b%.*})
+        scil_compute_bundle_volume.py \$b --reference ${anat} > volumes/\${bname}.json
+    done
+    scil_merge_json.py volumes/*.json ${sid}__bundle_volumes.json --no_list --indent 4 -f
+    """
+}
+
+process Patient_Info {
+    cpus 1
+    // Identifying information: never published.
+    publishDir "./results", enabled: false
+
+    when:
+    params.run_report
+
+    input:
+    set sid, file(dicom) from dicom_for_report
+
+    output:
+    set sid, "patient_name.txt", "patient_id.txt" into patient_info_for_report
+
+    script:
+    """
+    dcmdump +P PatientName -s ${dicom} | cut -d[ -f2 | cut -d] -f1 | tr '^' ' ' \
+        | sed 's/  */ /g; s/^ //; s/ \$//' > patient_name.txt
+    dcmdump +P PatientID -s ${dicom} | cut -d[ -f2 | cut -d] -f1 \
+        | sed 's/^ *//; s/ *\$//' > patient_id.txt
+    """
+}
+
+run_pdf_report = params.run_report && params.report_bundle_functions && params.report_normal_volumes
+if (params.run_report && !run_pdf_report) {
+    log.warn "SurgeryFlow report skipped: --report_bundle_functions and " +
+             "--report_normal_volumes are required to create it."
+}
+
+report_jsons = run_pdf_report ?
+    Channel.value([file(params.report_bundle_functions),
+                   file(params.report_normal_volumes),
+                   params.report_bundle_names ? file(params.report_bundle_names) : []]) :
+    Channel.empty()
+
+screenshots_for_report
+    .join(volumes_for_report)
+    .join(patient_info_for_report)
+    .combine(report_jsons)
+    .set{all_for_report}
+
+process SurgeryFlow_Report {
+    cpus 1
+    publishDir "${params.out_dicom_dir}", mode: 'copy'
+
+    input:
+    set sid, file(screenshot), file(screenshots_dir), file(volumes),
+        file(patient_name), file(patient_id),
+        file(functions), file(normal_volumes), file(names) from all_for_report
+
+    output:
+    file "${sid}__SurgeryFlow_report.pdf"
+
+    script:
+    String names_arg = names ? "--bundle_names ${names}" : ""
+    """
+    onset_create_surgeryflow_report ${screenshot} ${functions} ${volumes} \
+        ${normal_volumes} ${sid}__SurgeryFlow_report.pdf \
+        --bundle_screenshots_dir ${screenshots_dir} ${names_arg} \
+        --volume_threshold ${params.report_volume_threshold} \
+        --patient_name "\$(cat ${patient_name})" --patient_id "\$(cat ${patient_id})" -f
     """
 }
 

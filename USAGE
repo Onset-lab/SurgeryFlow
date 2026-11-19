@@ -174,6 +174,19 @@ OPTIONAL ARGUMENTS (current value)
                                             The folder must contain t1_template.nii.gz and t1_brain_probability_map.nii.gz.
                                             The default path is the human_data folder in the singularity container ($template_t1).
 
+--run_report                                Create the SurgeryFlow PDF report: bundle screenshots, bundle volumes
+                                            and onset_create_surgeryflow_report ($run_report).
+--report_bundle_functions                   JSON of the bundles to display and their functions ($report_bundle_functions).
+                                            e.g. {"AF_L": ["Language", "Repetition"], "PYT_R": "Motor"}
+                                            Required, with --report_normal_volumes, to create the PDF.
+--report_normal_volumes                     JSON of the normative bundle volumes in mm3 ($report_normal_volumes).
+                                            e.g. {"AF_L": 12345.6} or {"AF_L": {"mean": 12345.6, "std": 789.0}}
+--report_bundle_names                       Optional JSON mapping bundle abbreviations to full names ($report_bundle_names).
+--report_volume_threshold                   Warning when patient volume < threshold * normal volume ($report_volume_threshold).
+--screenshot_opacity_background             Opacity of the anatomy behind the bundles in the screenshots ($screenshot_opacity_background).
+--screenshot_resolution                     Resolution (pixels) of each view of the screenshots ($screenshot_resolution).
+--screenshot_zoom                           Zoom applied to the bundles in the screenshots ($screenshot_zoom).
+
 --processes_brain_extraction_t1             Number of processes for T1 brain extraction task ($processes_brain_extraction_t1).
 --processes_denoise_dwi                     Number of processes for DWI denoising task ($processes_denoise_dwi).
 --processes_denoise_t1                      Number of processes for T1 denoising task ($processes_denoise_t1).

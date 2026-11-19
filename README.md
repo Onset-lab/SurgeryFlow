@@ -64,6 +64,12 @@ White-matter bundles
 - Filter_Bundles (Scilpy)
 - Bundles_On_Anat (Scilpy)
 
+SurgeryFlow report
+- Screenshot_Bundles (Scilpy, ImageMagick)
+- Bundle_Volumes (Scilpy)
+- Patient_Info (dcmtk)
+- SurgeryFlow_Report (onsetpy)
+
 Nifti to DICOM
 - Nifti_To_Dicom (nii2dcm)
 
