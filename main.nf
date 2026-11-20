@@ -201,7 +201,7 @@ Channel.fromPath("$params.input/**/*")
     .mix(ch_sid_dicom)
     .collect()
     .map{it -> [it[1], it[0]]}
-    .into{dicom; dicom_for_nifti; dicom_for_report}
+    .into{dicom; dicom_for_nifti; dicom_for_report; dicom_for_report_dicom}
 
 labels_for_reg = Channel
     .fromFilePairs("$root/**/*{aparc+aseg.nii.gz,wmparc.nii.gz}",
@@ -2205,7 +2205,7 @@ process SurgeryFlow_Report {
         file(functions), file(normal_volumes), file(names) from all_for_report
 
     output:
-    file "${sid}__SurgeryFlow_report.pdf"
+    set sid, "${sid}__SurgeryFlow_report.pdf" into report_for_dicom
 
     script:
     String names_arg = names ? "--bundle_names ${names}" : ""
@@ -2215,6 +2215,45 @@ process SurgeryFlow_Report {
         --bundle_screenshots_dir ${screenshots_dir} ${names_arg} \
         --volume_threshold ${params.report_volume_threshold} \
         --patient_name "\$(cat ${patient_name})" --patient_id "\$(cat ${patient_id})" -f
+    """
+}
+
+report_for_dicom
+    .join(dicom_for_report_dicom)
+    .set{report_dicom_for_conversion}
+
+process Report_To_Dicom {
+    cpus 1
+    publishDir "${params.out_dicom_dir}", mode: 'copy'
+
+    input:
+    set sid, file(report), file(dicom) from report_dicom_for_conversion
+
+    output:
+    file "${sid}__SurgeryFlow_report"
+
+    script:
+    def version = workflow.manifest.version
+    """
+    date=\$(date '+%Y%m%d')
+    current_time=\$(date '+%H%M%S')
+    accession_number=\$(dcmdump +P AccessionNumber -s ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
+    institution_name=\$(dcmdump +P InstitutionName -s ${dicom} | grep InstitutionName | cut -d[ -f2 | cut -d] -f1)
+
+    # Encapsulated PDF: patient and study data are read from the input DICOM.
+    mkdir ${sid}__SurgeryFlow_report
+    pdf2dcm ${report} ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm \
+        --study-from ${dicom} --title "SurgeryFlow report"
+
+    dcmodify ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm -nb \
+        -i "(0008,0070)=OnsetLab" -i "(0008,0020)=\${date}"\
+        -i "(0008,0021)=\${date}" -i "(0008,0030)=\${current_time}"\
+        -i "(0008,0031)=\${current_time}" -i "(0008,0023)=\${date}"\
+        -i "(0008,0033)=\${current_time}"\
+        -i "(0008,1030)=SurgeryFlow" -i "(0008,103E)=SurgeryFlow report"\
+        -i "(2025,0010)=SurgeryFlow" -i "(2025,0011)=${version}"\
+        -i "(0018,1030)=SurgeryFlow"\
+        -i "(0008,0050)=\${accession_number}" -i "(0008,0080)=\${institution_name}"
     """
 }
 
