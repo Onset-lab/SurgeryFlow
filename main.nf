@@ -2246,9 +2246,9 @@ process Report_To_Dicom {
     pdf2dcm ${report} ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm\
         --study-from ${dicom}\
         --title "SurgeryFlow report" --key 0008,0070="OnsetLab"\
-        --key 0008,103e="${label}" --key 0008,0021="\${date}"\
+        --key 0008,103e="SurgeryFlow" --key 0008,0021="\${date}"\
         --key 0008,0031="\${time}" --key 0008,0020="\${date}"\
-        --key 0008,0030="\${time}" --key 2025,0010="${label}"\
+        --key 0008,0030="\${time}" --key 2025,0010="SurgeryFlow"\
         --key 2025,0011="${version}" --key 0008,0050="\${AccessionNumber}"\
         --key 0020,000D="\${study_uid}" --key 0008,1030="SurgeryFlow_report"
     """
