@@ -2236,24 +2236,21 @@ process Report_To_Dicom {
     def version = workflow.manifest.version
     """
     date=\$(date '+%Y%m%d')
-    current_time=\$(date '+%H%M%S')
-    accession_number=\$(dcmdump +P AccessionNumber -s ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
-    institution_name=\$(dcmdump +P InstitutionName -s ${dicom} | grep InstitutionName | cut -d[ -f2 | cut -d] -f1)
+    time=\$(date '+%H%M%S')
+    AccessionNumber=\$(dcmdump +P AccessionNumber -s ${dicom} | grep AccessionNumber | cut -d[ -f2 | cut -d] -f1)
+    PatientID=\$(dcmdump +P PatientID -s ${dicom} | grep PatientID | head -1 | cut -d[ -f2 | cut -d] -f1 | tr -d ' ')
+    hex15=\$(printf '%s' "SurgeryFlow:\${PatientID}" | sha256sum | cut -c1-15)
+    study_uid="2.25.\$(( 16#\${hex15} ))"
 
-    # Encapsulated PDF: patient and study data are read from the input DICOM.
     mkdir ${sid}__SurgeryFlow_report
-    pdf2dcm ${report} ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm \
-        --study-from ${dicom} --title "SurgeryFlow report"
-
-    dcmodify ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm -nb \
-        -i "(0008,0070)=OnsetLab" -i "(0008,0020)=\${date}"\
-        -i "(0008,0021)=\${date}" -i "(0008,0030)=\${current_time}"\
-        -i "(0008,0031)=\${current_time}" -i "(0008,0023)=\${date}"\
-        -i "(0008,0033)=\${current_time}"\
-        -i "(0008,1030)=SurgeryFlow" -i "(0008,103E)=SurgeryFlow report"\
-        -i "(2025,0010)=SurgeryFlow" -i "(2025,0011)=${version}"\
-        -i "(0018,1030)=SurgeryFlow"\
-        -i "(0008,0050)=\${accession_number}" -i "(0008,0080)=\${institution_name}"
+    pdf2dcm ${report} ${sid}__SurgeryFlow_report/${sid}__SurgeryFlow_report.dcm\
+        --study-from ${dicom}\
+        --title "SurgeryFlow report" --key 0008,0070="OnsetLab"\
+        --key 0008,103e="${label}" --key 0008,0021="\${date}"\
+        --key 0008,0031="\${time}" --key 0008,0020="\${date}"\
+        --key 0008,0030="\${time}" --key 2025,0010="${label}"\
+        --key 2025,0011="${version}" --key 0008,0050="\${AccessionNumber}"\
+        --key 0020,000D="\${study_uid}" --key 0008,1030="SurgeryFlow_report"
     """
 }
 
