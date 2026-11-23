@@ -2045,7 +2045,7 @@ process Bundles_On_Anat{
             scil_compute_streamlines_density_map.py \$b bundles_native/\${bname}_bin.nii.gz -f --binary --reference ${anat}
             scil_image_math.py convert bundles_native/\${bname}_bin.nii.gz bundles_native/\${bname}_f32.nii.gz --data_type float32 -f
             scil_image_math.py multiplication 300 bundles_native/\${bname}_f32.nii.gz bundles_native/mask_\${bname}_300.nii.gz -f
-            ImageMath 3 ${sid}__\${bname}_300.nii.gz addtozero bundles_native/mask_\${bname}_300.nii.gz anat_normalize_300.nii.gz
+            ImageMath 3 ${sid}__\${bname}_300.nii.gz addtozero bundles_native/mask_\${bname}_300.nii.gz anat_normalize_100.nii.gz
             mrconvert ${sid}__\${bname}_300.nii.gz ${sid}__\${bname}_300.nii.gz -stride -2,-1,3 -force
         fi
     done
